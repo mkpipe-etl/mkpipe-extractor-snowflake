@@ -1,21 +1,22 @@
-from mkpipe.functions_spark import BaseExtractor
+from mkpipe.spark import JdbcExtractor
 
 
-class SnowflakeExtractor(BaseExtractor):
-    def __init__(self, config, settings):
-        super().__init__(
-            config,
-            settings,
-            driver_name='snowflake',
-            driver_jdbc='net.snowflake.client.jdbc.SnowflakeDriver',
-        )
+class SnowflakeExtractor(JdbcExtractor, variant='snowflake'):
+    driver_name = 'snowflake'
+    driver_jdbc = 'net.snowflake.client.jdbc.SnowflakeDriver'
 
     def build_jdbc_url(self):
-        base = f'jdbc:{self.driver_name}://{self.host}:{self.port}/?user={self.username}&warehouse={self.warehouse}&db={self.database}&schema={self.schema}'
+        base = (
+            f'jdbc:{self.driver_name}://{self.host}:{self.port}/'
+            f'?user={self.username}'
+            f'&warehouse={self.warehouse}'
+            f'&db={self.database}'
+            f'&schema={self.schema}'
+        )
         if self.private_key_file:
+            base += f'&private_key_file={self.private_key_file}'
             if self.private_key_file_pwd:
-                return f'{base}&private_key_file={self.private_key_file}&private_key_file_pwd={self.private_key_file_pwd}'
-            else:
-                return f'{base}&private_key_file={self.private_key_file}'
+                base += f'&private_key_file_pwd={self.private_key_file_pwd}'
         else:
-            return f'{base}&password={self.password}'
+            base += f'&password={self.password}'
+        return base
