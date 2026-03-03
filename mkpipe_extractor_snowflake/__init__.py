@@ -1,5 +1,7 @@
 from mkpipe.spark import JdbcExtractor
 
+JAR_PACKAGES = ['net.snowflake:snowflake-jdbc:3.24.0']
+
 
 class SnowflakeExtractor(JdbcExtractor, variant='snowflake'):
     driver_name = 'snowflake'
