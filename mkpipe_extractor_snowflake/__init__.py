@@ -34,7 +34,7 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
             'sfWarehouse': self.warehouse,
         }
         if self.private_key_file:
-            opts['pem_private_key'] = self.private_key_file
+            opts['pem_private_key_file'] = self.private_key_file
             if self.private_key_file_pwd:
                 opts['sfPrivateKeyPassphrase'] = self.private_key_file_pwd
         else:
@@ -52,20 +52,27 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
 
     def _resolve_custom_query(self, table: TableConfig) -> Optional[str]:
         import os
+
         if table.custom_query:
             return table.custom_query
         if table.custom_query_file:
-            path = os.path.abspath(os.path.join(os.getcwd(), 'sql', table.custom_query_file))
+            path = os.path.abspath(
+                os.path.join(os.getcwd(), 'sql', table.custom_query_file)
+            )
             with open(path) as f:
                 return f.read()
         return None
 
-    def extract(self, table: TableConfig, spark, last_point: Optional[str] = None) -> ExtractResult:
-        logger.info({
-            'table': table.target_name,
-            'status': 'extracting',
-            'replication_method': table.replication_method.value,
-        })
+    def extract(
+        self, table: TableConfig, spark, last_point: Optional[str] = None
+    ) -> ExtractResult:
+        logger.info(
+            {
+                'table': table.target_name,
+                'status': 'extracting',
+                'replication_method': table.replication_method.value,
+            }
+        )
 
         custom_query = self._resolve_custom_query(table)
 
@@ -89,8 +96,11 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
             df = self._build_reader(spark, dbtable)
 
             from pyspark.sql import functions as F
+
             row = df.agg(F.max(table.iterate_column).alias('max_val')).first()
-            last_point_value = str(row['max_val']) if row and row['max_val'] is not None else None
+            last_point_value = (
+                str(row['max_val']) if row and row['max_val'] is not None else None
+            )
         else:
             write_mode = 'overwrite'
             if custom_query:
@@ -101,5 +111,13 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
             df = self._build_reader(spark, dbtable)
             last_point_value = None
 
-        logger.info({'table': table.target_name, 'status': 'extracted', 'write_mode': write_mode})
-        return ExtractResult(df=df, write_mode=write_mode, last_point_value=last_point_value)
+        logger.info(
+            {
+                'table': table.target_name,
+                'status': 'extracted',
+                'write_mode': write_mode,
+            }
+        )
+        return ExtractResult(
+            df=df, write_mode=write_mode, last_point_value=last_point_value
+        )

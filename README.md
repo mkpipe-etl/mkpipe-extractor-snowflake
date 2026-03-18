@@ -1,6 +1,6 @@
 # mkpipe-extractor-snowflake
 
-Snowflake extractor plugin for [MkPipe](https://github.com/mkpipe-etl/mkpipe). Reads Snowflake tables using the **native `spark-snowflake` connector**, which transfers data via internal staging (S3/Azure/GCS) — significantly faster than JDBC for large datasets.
+Snowflake extractor plugin for [MkPipe](https://github.com/mkpipe-etl/mkpipe). Reads Snowflake tables using the native Snowflake Spark connector (`spark-snowflake`), which transfers data via internal staging (S3/Azure/GCS) — significantly faster than JDBC for large datasets.
 
 ## Documentation
 
@@ -87,7 +87,7 @@ Use `{query_filter}` as a placeholder — it is replaced with the incremental `W
 
 ## Read Parallelism
 
-Snowflake extractor uses JDBC with Spark's native partition support. For large tables, set `partitions_column` and `partitions_count` to read in parallel:
+Snowflake extractor uses the native Snowflake Spark connector with Spark's partition support. For large tables, set `partitions_column` and `partitions_count` to read in parallel:
 
 ```yaml
       - name: MY_SCHEMA.EVENTS
@@ -96,15 +96,15 @@ Snowflake extractor uses JDBC with Spark's native partition support. For large t
         iterate_column: UPDATED_AT
         iterate_column_type: datetime
         partitions_column: ID       # numeric column to split on
-        partitions_count: 8         # number of parallel JDBC partitions
+        partitions_count: 8         # number of parallel Spark partitions
         fetchsize: 50000
 ```
 
 ### How it works
 
 - Spark reads the min/max of `partitions_column` and divides the range into `partitions_count` equal slices
-- Each slice is fetched by a separate Spark task via a separate JDBC connection to Snowflake
-- `fetchsize` controls how many rows each connection fetches per round-trip
+- Each slice is fetched by a separate Spark task via the Snowflake connector
+- `fetchsize` controls how many rows are fetched per round-trip
 
 ### Performance Notes
 
@@ -124,8 +124,8 @@ Snowflake extractor uses JDBC with Spark's native partition support. For large t
 | `replication_method` | `full` / `incremental` | `full` | Replication strategy |
 | `iterate_column` | string | — | Column used for incremental watermark |
 | `iterate_column_type` | `int` / `datetime` | — | Type of `iterate_column` |
-| `partitions_column` | string | same as `iterate_column` | Column to split JDBC reads on |
-| `partitions_count` | int | `10` | Number of parallel JDBC partitions |
+| `partitions_column` | string | same as `iterate_column` | Column to split Spark reads on |
+| `partitions_count` | int | `10` | Number of parallel Spark partitions |
 | `fetchsize` | int | `100000` | Rows per JDBC fetch |
 | `custom_query` | string | — | Override SQL with `{query_filter}` placeholder |
 | `custom_query_file` | string | — | Path to SQL file (relative to `sql/` dir) |
