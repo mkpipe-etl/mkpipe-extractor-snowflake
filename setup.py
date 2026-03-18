@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mkpipe-extractor-snowflake',
-    version='0.5.0',
+    version='0.5.1',
     license='Apache License 2.0',
     packages=find_packages(exclude=['tests', 'scripts', 'deploy', 'install_jars.py']),
     install_requires=['mkpipe'],
