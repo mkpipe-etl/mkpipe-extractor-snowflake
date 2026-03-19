@@ -5,7 +5,7 @@ setup(
     version='0.5.2',
     license='Apache License 2.0',
     packages=find_packages(exclude=['tests', 'scripts', 'deploy', 'install_jars.py']),
-    install_requires=['mkpipe'],
+    install_requires=['mkpipe', 'cryptography'],
     include_package_data=True,
     entry_points={
         'mkpipe.extractors': [
