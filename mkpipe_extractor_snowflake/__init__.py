@@ -124,6 +124,10 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
             dbtable = f'({sql}) q'
             df = self._build_reader(spark, dbtable)
 
+            if not df.take(1):
+                logger.info({'table': table.target_name, 'status': 'no_new_data'})
+                return ExtractResult(df=None, write_mode=write_mode)
+
             from pyspark.sql import functions as F
 
             row = df.agg(F.max(table.iterate_column).alias('max_val')).first()
