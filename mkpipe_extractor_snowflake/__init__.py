@@ -125,6 +125,9 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
             df = self._build_reader(spark, dbtable)
 
             if not df.take(1):
+                if write_mode == 'overwrite':
+                    logger.info({'table': table.target_name, 'status': 'empty_source_initial_load'})
+                    return ExtractResult(df=df, write_mode=write_mode)
                 logger.info({'table': table.target_name, 'status': 'no_new_data'})
                 return ExtractResult(df=None, write_mode=write_mode)
 
