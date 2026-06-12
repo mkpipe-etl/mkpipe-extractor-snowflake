@@ -105,8 +105,24 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
 
         custom_query = self._resolve_custom_query(table)
 
+        has_static_bounds = table.filter_lower_bound is not None or table.filter_upper_bound is not None
+
         if table.replication_method.value == 'incremental' and table.iterate_column:
-            if last_point:
+            if has_static_bounds:
+                conditions = []
+                if table.filter_lower_bound is not None:
+                    if table.iterate_column_type == 'int':
+                        conditions.append(f'{table.iterate_column} >= {table.filter_lower_bound}')
+                    else:
+                        conditions.append(f"{table.iterate_column} >= '{table.filter_lower_bound}'")
+                if table.filter_upper_bound is not None:
+                    if table.iterate_column_type == 'int':
+                        conditions.append(f'{table.iterate_column} < {table.filter_upper_bound}')
+                    else:
+                        conditions.append(f"{table.iterate_column} < '{table.filter_upper_bound}'")
+                filter_clause = 'WHERE ' + ' AND '.join(conditions)
+                write_mode = 'overwrite'
+            elif last_point:
                 write_mode = 'append'
                 if table.iterate_column_type == 'int':
                     filter_clause = f'WHERE {table.iterate_column} >= {last_point}'
