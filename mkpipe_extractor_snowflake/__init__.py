@@ -106,28 +106,45 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
         custom_query = self._resolve_custom_query(table)
 
         has_static_bounds = table.filter_lower_bound is not None or table.filter_upper_bound is not None
+        columns = table.iterate_columns
+        is_multi = table.is_multi_iterate_column
 
         if table.replication_method.value == 'incremental' and table.iterate_column:
             if has_static_bounds:
-                conditions = []
-                if table.filter_lower_bound is not None:
-                    if table.iterate_column_type == 'int':
-                        conditions.append(f'{table.iterate_column} >= {table.filter_lower_bound}')
-                    else:
-                        conditions.append(f"{table.iterate_column} >= '{table.filter_lower_bound}'")
-                if table.filter_upper_bound is not None:
-                    if table.iterate_column_type == 'int':
-                        conditions.append(f'{table.iterate_column} < {table.filter_upper_bound}')
-                    else:
-                        conditions.append(f"{table.iterate_column} < '{table.filter_upper_bound}'")
-                filter_clause = 'WHERE ' + ' AND '.join(conditions)
+                col_conditions = []
+                for col in columns:
+                    parts = []
+                    if table.filter_lower_bound is not None:
+                        if table.iterate_column_type == 'int':
+                            parts.append(f'{col} >= {table.filter_lower_bound}')
+                        else:
+                            parts.append(f"{col} >= '{table.filter_lower_bound}'")
+                    if table.filter_upper_bound is not None:
+                        if table.iterate_column_type == 'int':
+                            parts.append(f'{col} < {table.filter_upper_bound}')
+                        else:
+                            parts.append(f"{col} < '{table.filter_upper_bound}'")
+                    col_conditions.append('(' + ' AND '.join(parts) + ')')
+                if is_multi:
+                    filter_clause = 'WHERE ' + ' OR '.join(col_conditions)
+                else:
+                    filter_clause = 'WHERE ' + ' AND '.join(parts)
                 write_mode = 'append'
             elif last_point:
                 write_mode = 'append'
-                if table.iterate_column_type == 'int':
-                    filter_clause = f'WHERE {table.iterate_column} >= {last_point}'
+                if is_multi:
+                    or_parts = []
+                    for col in columns:
+                        if table.iterate_column_type == 'int':
+                            or_parts.append(f'{col} >= {last_point}')
+                        else:
+                            or_parts.append(f"{col} >= '{last_point}'")
+                    filter_clause = 'WHERE ' + ' OR '.join(or_parts)
                 else:
-                    filter_clause = f"WHERE {table.iterate_column} >= '{last_point}'"
+                    if table.iterate_column_type == 'int':
+                        filter_clause = f'WHERE {columns[0]} >= {last_point}'
+                    else:
+                        filter_clause = f"WHERE {columns[0]} >= '{last_point}'"
             else:
                 write_mode = 'overwrite'
                 filter_clause = 'WHERE 1=1'
@@ -149,7 +166,11 @@ class SnowflakeExtractor(BaseExtractor, variant='snowflake'):
 
             from pyspark.sql import functions as F
 
-            row = df.agg(F.max(table.iterate_column).alias('max_val')).first()
+            if is_multi:
+                max_expr = F.greatest(*[F.max(F.col(c)) for c in columns])
+                row = df.select(max_expr.alias('max_val')).first()
+            else:
+                row = df.agg(F.max(columns[0]).alias('max_val')).first()
             last_point_value = (
                 str(row['max_val']) if row and row['max_val'] is not None else None
             )
